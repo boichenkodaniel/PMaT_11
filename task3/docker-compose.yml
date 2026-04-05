@@ -1,0 +1,30 @@
+services:
+  go:
+    build:
+      context: .
+      dockerfile: Dockerfile.go
+    ports:
+      - "8080:8080"
+    networks:
+      - app-net
+    depends_on:
+      - python
+      - rust
+
+  python:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    networks:
+      - app-net
+
+  rust:
+    build:
+      context: .
+      dockerfile: Dockerfile.rust
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
