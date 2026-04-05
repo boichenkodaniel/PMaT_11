@@ -37,5 +37,27 @@
 
 ---
 
-
+### Задание 1 — Go-приложение с многоэтапной сборкой
+**Перейти в папку задания**
+```bash
+cd task1
+```
+**Собрать Docker-образ**
+```bash
+docker build -t lr11-task1 .
+```
+**Запустить контейнер**
+```bash
+docker run -d -p 8080:8080 --name task1-app lr11-task1
+```
+**Проверить работу (доступные эндпоинты)**
+```bash
+curl http://localhost:8080/health
+curl "http://localhost:8080/hello?name=World"
+```
+**Остановить и удалить контейнер**
+```bash
+docker stop task1-app 
+docker rm task1-app
+```
 
