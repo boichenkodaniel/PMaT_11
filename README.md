@@ -131,11 +131,55 @@ docker images --format "table {{.Repository}}\t{{.Size}}" | findstr lr11-task2
 
 ---
 
+### Задание 3 — Настроить сеть между контейнерами
+
+Три сервиса (Go, Python, Rust) объединены в общую Docker-сеть через `docker-compose.yml`. Go-сервер выступает шлюзом: эндпоинт `/status` опрашивает Python и Rust по внутренней сети и возвращает общий статус.
+
+```
+┌─────────────┐
+│  Go (:8080)  │  ← доступен на хосте
+│  /health     │
+│  /hello      │
+│  /status     │  → опрашивает python:8080 и rust:8080
+└──┬───────┬───┘
+   │       │  docker network: app-net
+   ▼       ▼
+┌──────┐ ┌──────┐
+│Python│ │ Rust │
+└──────┘ └──────┘
+```
+
+Запустить все сервисы:
+```bash
+cd task3
+docker compose up -d --build
+```
+
+Проверить работу:
+```bash
+curl http://localhost:8080/health
+curl "http://localhost:8080/hello?name=Network"
+curl http://localhost:8080/status
+```
+
+Проверить сеть:
+```bash
+docker network ls
+docker network inspect task3_app-net
+```
+
+Остановить:
+```bash
+docker compose down
+```
+
+---
+
 ## Тесты
 
 | Язык | Команда | Кол-во |
 |------|---------|--------|
-| Go | `cd task2/src/go && go test -v .` | 9 |
-| Python | `cd task2 && python -m pytest src/python/tests/test_python.py -v` | 15 |
-| Rust | `cd task2/src/rust && cargo test` | 11 |
+| Go | `cd task3/src/go && go test -v .` | 13 (10 unit + 3 integration) |
+| Python | `cd task3 && python -m pytest src/python/tests/test_python.py -v` | 15 |
+| Rust | `cd task3/src/rust && cargo test` | 11 |
 
