@@ -38,26 +38,104 @@
 ---
 
 ### Задание 1 — Go-приложение с многоэтапной сборкой
-**Перейти в папку задания**
+
+Перейти в папку задания:
 ```bash
 cd task1
 ```
-**Собрать Docker-образ**
+
+Собрать Docker-образ:
 ```bash
 docker build -t lr11-task1 .
 ```
-**Запустить контейнер**
+
+Запустить контейнер:
 ```bash
 docker run -d -p 8080:8080 --name task1-app lr11-task1
 ```
-**Проверить работу (доступные эндпоинты)**
+
+Проверить работу (доступные эндпоинты):
 ```bash
 curl http://localhost:8080/health
 curl "http://localhost:8080/hello?name=World"
 ```
-**Остановить и удалить контейнер**
+
+Остановить и удалить контейнер:
 ```bash
-docker stop task1-app 
+docker stop task1-app
 docker rm task1-app
 ```
+
+---
+
+### Задание 2 — Собрать образы и сравнить их размеры
+
+Три идентичных по функционалу приложения (эндпоинты `/health` и `/hello`) собраны в Docker-образы с использованием многоэтапной сборки и минимальных базовых образов.
+
+#### Go
+
+```bash
+cd task2
+docker build -f Dockerfile.go -t lr11-task2-go .
+docker run -d -p 8081:8080 --name task2-go lr11-task2-go
+curl http://localhost:8081/health
+curl "http://localhost:8081/hello?name=Go"
+docker stop task2-go && docker rm task2-go
+```
+
+#### Python
+
+```bash
+cd task2
+docker build -f Dockerfile.python -t lr11-task2-python .
+docker run -d -p 8082:8080 --name task2-python lr11-task2-python
+curl http://localhost:8082/health
+curl "http://localhost:8082/hello?name=Python"
+docker stop task2-python && docker rm task2-python
+```
+
+#### Rust
+
+```bash
+cd task2
+docker build -f Dockerfile.rust -t lr11-task2-rust .
+docker run -d -p 8083:8080 --name task2-rust lr11-task2-rust
+curl http://localhost:8083/health
+curl "http://localhost:8083/hello?name=Rust"
+docker stop task2-rust && docker rm task2-rust
+```
+
+#### Сравнение размеров
+
+```bash
+docker images --format "table {{.Repository}}\t{{.Size}}" | findstr lr11-task2
+```
+
+| Язык | Базовый образ (финальный) | Размер | Многоэтапная сборка |
+|------|--------------------------|--------|---------------------|
+| Go | `scratch` (0 B) | ~7 MB | ✅ builder → scratch |
+| Rust | `alpine:3.19` (~7 MB) | ~17 MB | ✅ rust → alpine |
+| Python | `python:3.12-slim` | ~177 MB | ❌ нет |
+
+#### Вывод
+
+Самый маленький образ даёт **Go**, потому что:
+
+1. Статическая компиляция (`CGO_ENABLED=0`) — один бинарник без зависимостей.
+2. Финальный образ `scratch` — пустой, 0 байт оверхеда.
+3. Флаги `-ldflags="-s -w"` вырезают отладочную информацию.
+
+**Rust** на втором месте — статический бинарник (musl), но финальный образ `alpine` добавляет ~7 MB.
+
+**Python** самый большой — интерпретатор + стандартная библиотека занимают ~170 MB, многоэтапная сборка неприменима (нужен интерпретатор в runtime).
+
+---
+
+## Тесты
+
+| Язык | Команда | Кол-во |
+|------|---------|--------|
+| Go | `cd task2/src/go && go test -v .` | 9 |
+| Python | `cd task2 && python -m pytest src/python/tests/test_python.py -v` | 15 |
+| Rust | `cd task2/src/rust && cargo test` | 11 |
 
