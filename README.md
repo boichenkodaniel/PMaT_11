@@ -173,8 +173,6 @@ docker network inspect task3_app-net
 docker compose down
 ```
 
----
-
 ## Тесты
 
 | Язык | Команда | Кол-во |
@@ -182,4 +180,47 @@ docker compose down
 | Go | `cd task3/src/go && go test -v .` | 13 (10 unit + 3 integration) |
 | Python | `cd task3 && python -m pytest src/python/tests/test_python.py -v` | 15 |
 | Rust | `cd task3/src/rust && cargo test` | 11 |
+
+---
+
+### Задание 4 — Собрать Rust-приложение с поддержкой musl для полностью статической сборки.
+
+Rust-приложение с зависимостями `serde` + `serde_json` скомпилировано под `x86_64-unknown-linux-musl` — полностью статический бинарник, запущенный на `scratch`.
+
+```bash
+cd task4
+docker build -t lr11-task4 .
+docker run -d -p 8085:8080 --name task4-app lr11-task4
+curl http://localhost:8085/health
+curl "http://localhost:8085/hello?name=Musl"
+docker stop task4-app && docker rm task4-app
+```
+
+#### Доказательство статической сборки
+Тип бинарника (временный образ, удаляется после проверки)
+```bash
+docker build --target builder -t task4-check .
+docker run --rm task4-check sh -c "apk add file >/dev/null 2>&1 && file /app/target/x86_64-unknown-linux-musl/release/server"
+docker rmi task4-check
+```
+Вывод: ELF 64-bit LSB pie executable, x86-64, static-pie linked
+
+Динамические зависимости (их нет)
+```bash
+docker build --target builder -t task4-check .
+docker run --rm task4-check sh -c "ldd /app/target/x86_64-unknown-linux-musl/release/server"
+docker rmi task4-check
+```
+Вывод: только /lib/ld-musl-x86_64.so.1 (ELF-линкер, не зависимость)
+
+Размер итого образа
+```bash
+docker images lr11-task4 --format "{{.Size}}"
+```
+
+#### Вывод
+
+Даже с внешними крейтами (`serde`, `serde_json`, `proc-macro2`, `syn`) musl-таргет даёт полностью статический бинарник, работающий на пустом `scratch`-образе. Размер итого образа **~900 KB** против ~17 MB на alpine и ~177 MB для Python.
+
+---
 
