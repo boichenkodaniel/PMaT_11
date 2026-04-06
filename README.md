@@ -224,3 +224,60 @@ docker images lr11-task4 --format "{{.Size}}"
 
 ---
 
+### Задание 5 — Кросс-платформенная сборка (buildx)
+
+Go-приложение собрано через `docker buildx` для двух архитектур: `linux/amd64` и `linux/arm64`. В ответе сервер сообщает архитектуру через `runtime.GOOS/runtime.GOARCH`.
+
+```bash
+cd task5
+```
+Создать buildx builder
+```bash
+docker buildx create --name lr11-builder --use --bootstrap
+```
+Собрать multi-arch образ
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 -t lr11-task5 .
+```
+Или собрать и загрузить локально (по одной архитектуре)
+```bash
+docker buildx build --platform linux/amd64 -t lr11-task5:amd64 --load .
+docker buildx build --platform linux/arm64 -t lr11-task5:arm64 --load .
+```
+Проверить архитектуры
+```bash
+docker inspect lr11-task5:amd64 --format "{{.Architecture}}"
+docker inspect lr11-task5:arm64 --format "{{.Architecture}}"
+```
+Запустить и проверить
+```bash
+docker run -d -p 8090:8080 --name task5-amd64 --platform linux/amd64 lr11-task5:amd64
+docker run -d -p 8091:8080 --name task5-arm64 --platform linux/arm64 lr11-task5:arm64
+
+curl http://localhost:8090/health
+curl http://localhost:8091/health
+```
+Остановить и удалить
+```bash
+docker stop task5-amd64 task5-arm64 
+docker rm task5-amd64 task5-arm64
+```
+
+#### Результат
+
+| Архитектура | `docker inspect` | `/health` ответ |
+|-------------|-----------------|-----------------|
+| `linux/amd64` | `amd64` | `{"arch":"linux/amd64"}` |
+| `linux/arm64` | `arm64` | `{"arch":"linux/arm64"}` |
+
+#### Как это работает
+
+Dockerfile использует переменную `TARGETARCH`, которую buildx устанавливает автоматически:
+
+```dockerfile
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build ...
+```
+
+Go компилятор кросс-платформенный — `CGO_ENABLED=0` позволяет собирать под любую архитектуру без эмуляции QEMU.
+
